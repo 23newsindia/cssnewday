@@ -5,6 +5,7 @@ require_once MACP_PLUGIN_DIR . 'includes/class-macp-filesystem.php';
 class MACP_HTML_Cache {
     private $cache_dir;
     private $excluded_urls;
+    private $css_optimizer;
 
     public function __construct() {
         $this->cache_dir = WP_CONTENT_DIR . '/cache/macp/';
@@ -25,6 +26,10 @@ class MACP_HTML_Cache {
             'register'
         ];
         
+        if (get_option('macp_remove_unused_css', 0)) {
+            $this->css_optimizer = new MACP_CSS_Optimizer();
+        }
+        
         $this->ensure_cache_directory();
     }
 
@@ -41,6 +46,26 @@ class MACP_HTML_Cache {
         
         return true;
     }
+
+    private function get_cache_path($is_logged_in = false, $user_id = 0) {
+        $request_uri = $_SERVER['REQUEST_URI'];
+        $host = $_SERVER['HTTP_HOST'];
+        
+        // Create a unique cache key based on the URL and host
+        $cache_key = md5($request_uri . '|' . $host);
+        
+        // Add user-specific suffix if logged in
+        if ($is_logged_in && $user_id) {
+            $cache_key .= '_u' . $user_id;
+        }
+        
+        return [
+            'html' => $this->cache_dir . $cache_key . '.html',
+            'gzip' => $this->cache_dir . $cache_key . '.gz'
+        ];
+    }
+    
+    
 
     public function should_cache_page() {
         if (!is_dir($this->cache_dir) || !is_writable($this->cache_dir)) {
@@ -82,7 +107,7 @@ class MACP_HTML_Cache {
         }
     }
 
-      public function cache_output($buffer) {
+    public function cache_output($buffer) {
         if (strlen($buffer) < 255) {
             MACP_Debug::log("Buffer too small to cache: " . strlen($buffer) . " bytes");
             return $buffer;
@@ -95,10 +120,14 @@ class MACP_HTML_Cache {
         MACP_Debug::log("Processing page for cache: " . $_SERVER['REQUEST_URI'] . 
             ($is_logged_in ? " (User ID: {$user_id})" : " (Guest)"));
 
-        // Add CSS optimization
+        // Add CSS optimization if enabled
         if (get_option('macp_remove_unused_css', 0)) {
-            $css_optimizer = new MACP_CSS_Optimizer();
-            $buffer = $css_optimizer->optimize_css($buffer);
+            try {
+                $css_optimizer = new MACP_CSS_Optimizer();
+                $buffer = $css_optimizer->optimize_css($buffer);
+            } catch (Exception $e) {
+                MACP_Debug::log("CSS optimization error: " . $e->getMessage());
+            }
         }
 
         // Add cache creation time and user status comment
@@ -111,9 +140,13 @@ class MACP_HTML_Cache {
       
         // Check if minification is enabled
         if (get_option('macp_minify_html', 0)) {
-            MACP_Debug::log("Applying HTML minification");
-            $minification = new MACP_Minification();
-            $buffer = $minification->process_output($buffer);
+            try {
+                MACP_Debug::log("Applying HTML minification");
+                $minification = new MACP_Minification();
+                $buffer = $minification->process_output($buffer);
+            } catch (Exception $e) {
+                MACP_Debug::log("HTML minification error: " . $e->getMessage());
+            }
         }
 
         // Save uncompressed version

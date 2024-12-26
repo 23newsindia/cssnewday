@@ -24,6 +24,10 @@ require_once MACP_PLUGIN_DIR . 'includes/class-macp-minification.php';
 require_once MACP_PLUGIN_DIR . 'includes/class-macp-html-cache.php';
 require_once MACP_PLUGIN_DIR . 'includes/class-macp-js-optimizer.php';
 
+require_once MACP_PLUGIN_DIR . 'includes/css/class-macp-css-optimizer.php';
+require_once MACP_PLUGIN_DIR . 'includes/css/class-macp-css-config.php';
+require_once MACP_PLUGIN_DIR . 'includes/css/class-macp-css-extractor.php';
+
 // Load admin files
 require_once MACP_PLUGIN_DIR . 'includes/admin/class-macp-admin-assets.php';
 require_once MACP_PLUGIN_DIR . 'includes/admin/class-macp-admin-settings.php';
